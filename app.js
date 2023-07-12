@@ -1,8 +1,8 @@
-const gameController = (() => {
-  const _X = "X";
-  const _O = "O";
-  const _NONE = "NONE";
+const _X = "X";
+const _O = "O";
+const _NONE = "NONE";
 
+const gameController = (() => {
   let _length = 3;
   let _gameOver = false;
   let _winner = _NONE;
@@ -195,69 +195,51 @@ const gameController = (() => {
     return winner;
   };
 
-  return { signX, signO, gameBoard, winner, createGameBoard, place, reset };
+  return { signX, signO, gameBoard, winner, createGameBoard, place, reset, qwe };
 })();
 
-console.log(gameController.createGameBoard(5));
-console.log(gameController.place(gameController.signX(), 0, 0));
-console.log(gameController.place(gameController.signX(), 0, 1));
-console.log(gameController.place(gameController.signX(), 0, 2));
-console.log(gameController.place(gameController.signX(), 0, 3));
-console.log(gameController.place(gameController.signX(), 0, 4));
-console.log(gameController.gameBoard());
-console.log("-------------------------New Game-------------------------");
-console.log(gameController.reset());
-console.log(gameController.place(gameController.signX(), 1, 0));
-console.log(gameController.place(gameController.signX(), 1, 1));
-console.log(gameController.place(gameController.signX(), 1, 2));
-console.log(gameController.place(gameController.signX(), 1, 3));
-console.log(gameController.place(gameController.signX(), 1, 4));
-console.log(gameController.gameBoard());
-console.log("-------------------------New Game-------------------------");
-console.log(gameController.reset());
-console.log(gameController.place(gameController.signX(), 2, 0));
-console.log(gameController.place(gameController.signX(), 2, 1));
-console.log(gameController.place(gameController.signX(), 2, 2));
-console.log(gameController.place(gameController.signX(), 2, 3));
-console.log(gameController.place(gameController.signX(), 2, 4));
-console.log(gameController.gameBoard());
-console.log("-------------------------New Game-------------------------");
-console.log(gameController.reset());
-console.log(gameController.place(gameController.signX(), 0, 0));
-console.log(gameController.place(gameController.signX(), 1, 0));
-console.log(gameController.place(gameController.signX(), 2, 0));
-console.log(gameController.place(gameController.signX(), 3, 0));
-console.log(gameController.place(gameController.signX(), 4, 0));
-console.log(gameController.gameBoard());
-console.log("-------------------------New Game-------------------------");
-console.log(gameController.reset());
-console.log(gameController.place(gameController.signX(), 0, 1));
-console.log(gameController.place(gameController.signX(), 1, 1));
-console.log(gameController.place(gameController.signX(), 2, 1));
-console.log(gameController.place(gameController.signX(), 3, 1));
-console.log(gameController.place(gameController.signX(), 4, 1));
-console.log(gameController.gameBoard());
-console.log("-------------------------New Game-------------------------");
-console.log(gameController.reset());
-console.log(gameController.place(gameController.signX(), 0, 2));
-console.log(gameController.place(gameController.signX(), 1, 2));
-console.log(gameController.place(gameController.signX(), 2, 2));
-console.log(gameController.place(gameController.signX(), 3, 2));
-console.log(gameController.place(gameController.signX(), 4, 2));
-console.log(gameController.gameBoard());
-console.log("-------------------------New Game-------------------------");
-console.log(gameController.reset());
-console.log(gameController.place(gameController.signX(), 0, 0));
-console.log(gameController.place(gameController.signX(), 1, 1));
-console.log(gameController.place(gameController.signX(), 2, 2));
-console.log(gameController.place(gameController.signX(), 3, 3));
-console.log(gameController.place(gameController.signX(), 4, 4));
-console.log(gameController.gameBoard());
-console.log("-------------------------New Game-------------------------");
-console.log(gameController.reset());
-console.log(gameController.place(gameController.signX(), 0, 4));
-console.log(gameController.place(gameController.signX(), 1, 3));
-console.log(gameController.place(gameController.signX(), 2, 2));
-console.log(gameController.place(gameController.signX(), 3, 1));
-console.log(gameController.place(gameController.signX(), 4, 0));
-console.log(gameController.gameBoard());
+const displayController = (() => {
+  let _gameBoardEl;
+
+  const initGameBoardEl = (gameBoardContainerEl, length) => {
+    _gameBoardEl = document.createElement("div");
+    _gameBoardEl.style.display = "grid";
+    _gameBoardEl.style.gridTemplateColumns = `repeat(${length}, 1fr`;
+    _gameBoardEl.style.gridTemplateRows = `repeat(${length}, 1fr`;
+    for (let i = 0; i < length; i++) {
+      for (let j = 0; j < length; j++) {
+        const cellEl = document.createElement("div");
+        cellEl.setAttribute("data-row", i.toString());
+        cellEl.setAttribute("data-col", j.toString());
+        _gameBoardEl.appendChild(cellEl);
+      }
+    }
+
+    gameBoardContainerEl.innerHTML = "";
+    gameBoardContainerEl.appendChild(_gameBoardEl);
+  };
+
+  const showGameBoard = (gameBoard) => {
+    for (let i = 0; i < gameBoard.length; i++) {
+      const row = gameBoard[i];
+      for (let j = 0; j < gameBoard.length; j++) {
+        const cell = gameBoard[j];
+        showMove(i, j, cell);
+      }
+    }
+  };
+
+  const showMove = (row, col, sign) => {
+    const cellEl = _gameBoardEl.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+    if (cellEl) cellEl.textContent = _getSignText(sign);
+  };
+
+  const _getSignText = (sign) => {
+    if (sign === _X || sign === _O) return sign;
+    else return "";
+  };
+
+  return { initGameBoardEl, showGameBoard, showMove };
+})();
+
+const interactionController = (() => {})();
