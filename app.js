@@ -242,4 +242,26 @@ const displayController = (() => {
   return { initGameBoardEl, showGameBoard, showMove };
 })();
 
-const interactionController = (() => {})();
+const interactionController = (() => {
+  let _length;
+  let _changed = [];
+
+  const initFieldLengthEl = (fieldLengthContainerEl) => {
+    const lengthSliderEl = fieldLengthContainerEl.querySelector(".length-slider");
+    const lengthInfoEl = fieldLengthContainerEl.querySelector(".length-info");
+
+    lengthSliderEl.addEventListener("input", (event) => (lengthInfoEl.textContent = event.target.value + " x " + event.target.value));
+    lengthSliderEl.addEventListener("change", (event) => {
+      _length = event.target.value;
+      _changed.forEach((x) => x("length", _length));
+    });
+  };
+
+  const initGameBoardEl = (gameBoardContainerEl) => {
+    gameBoardContainerEl.addEventListener("click", (event) => {
+      if (event.target.dataset.row && event.target.dataset.col) {
+        _changed.forEach((x) => x("selectedCell", { row: event.target.dataset.row, col: event.target.dataset.col }));
+      }
+    });
+  };
+})();
