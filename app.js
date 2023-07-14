@@ -338,23 +338,30 @@ const displayController = (() => {
     _gameBoardEl.style.gridTemplateColumns = `repeat(${length}, 1fr`;
     _gameBoardEl.style.gridTemplateRows = `repeat(${length}, 1fr`;
     _gameBoardEl.style.height = "100%";
+    _gameBoardEl.style.gap = "16px";
+    _gameBoardEl.style.padding = "16px";
     _gameBoardEl.innerHTML = "";
     for (let i = 0; i < length; i++) {
       for (let j = 0; j < length; j++) {
         const cellEl = document.createElement("div");
 
-        if (i !== length - 1) cellEl.style.borderBottom = "1px solid black";
-        if (j !== length - 1) cellEl.style.borderRight = "1px solid black";
-        cellEl.style.display = "flex";
-        cellEl.style.justifyContent = "center";
-        cellEl.style.alignItems = "center";
+        // if (i !== length - 1) cellEl.style.borderBottom = "1px solid black";
+        // if (j !== length - 1) cellEl.style.borderRight = "1px solid black";
+        // cellEl.style.display = "flex";
+        // cellEl.style.justifyContent = "center";
+        // cellEl.style.alignItems = "center";
+        // cellEl.style.cursor = "pointer";
 
-        cellEl.style.cursor = "pointer";
+        cellEl.classList.add("sign-cell");
+
         cellEl.setAttribute("data-row", i.toString());
         cellEl.setAttribute("data-col", j.toString());
         _gameBoardEl.appendChild(cellEl);
       }
     }
+    console.log(gameBoardContainerEl.offsetWidth);
+    console.log(_gameBoardEl.offsetWidth);
+    gameBoardContainerEl.style.height = `${gameBoardContainerEl.offsetWidth}px`;
   };
 
   const showGameBoard = (gameBoard) => {
