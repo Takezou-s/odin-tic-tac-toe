@@ -19,11 +19,44 @@
     <title>Tic Tac Toe</title>
   </head>
   <body>
+    <template id="player-card-template">
+      <div class="player-card">
+        <h1>Player-1</h1>
+        <div class="round-history">
+          <h3>Last 5 Rounds:</h3>
+        </div>
+        <div class="player-score">
+          <h1>Score</h1>
+          <h1>0</h1>
+        </div>
+      </div>
+    </template>
+
     <div class="container">
-      <div>Player1</div>
+      <div class="player-container"></div>
       <div class="game-board">Game Board</div>
-      <div>Player2</div>
-      <div class="settings">Settings</div>
+      <div class="player-container"></div>
+      <div class="settings">
+        <div class="settings__length">
+          <h2>3 x 3</h2>
+          <input type="range" min="3" step="2" max="15" value="3" />
+        </div>
+        <div class="settings__round">
+          <h2>Round</h2>
+          <h2>1</h2>
+        </div>
+        <div class="settings__buttons">
+          <button class="button start">Start</button>
+          <button class="button stop hide">Quit</button>
+          <button class="button">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop hide"></div>
+    <div class="modal-content hide">
+      <h1 style="font-size: 64px">Winner</h1>
+      <h1 id="winner" style="font-size: 80px; margin: 16px">Player - 1</h1>
     </div>
   </body>
 </html>

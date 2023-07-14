@@ -1,9 +1,103 @@
 const X = "X";
 const O = "O";
 const NONE = "NONE";
-const DRAW = "DRAW";
+const WIN = "win";
+const LOSE = "lose";
+const DRAW = "draw";
 const LENGTH = "length";
 const SELECTEDCELL = "selectedCell";
+const SCORE = "score";
+const HISTORY = "history";
+
+function changedNotifier() {
+  const _changed = [];
+
+  const subscribe = (subscriber) => {
+    _changed.push(subscriber);
+  };
+
+  const fireChanged = (property, value) => {
+    _changed.forEach((x) => x(property, value));
+  };
+
+  return { subscribe, fireChanged };
+}
+
+function notifyOnChangeProperty(propertyName, notifier, mustChange = true) {
+  let _value;
+
+  const setValue = (value) => {
+    let changed = _value !== value;
+    _value = value;
+    if (changed || !mustChange) fireChanged();
+  };
+
+  const setValueSilent = (value) => {
+    _value = value;
+  };
+
+  const getValue = () => {
+    return _value;
+  };
+
+  const fireChanged = () => {
+    notifier.fireChanged(propertyName, _value);
+  };
+
+  return { setValue, setValueSilent, getValue, fireChanged };
+}
+
+function changeSubscriber() {
+  const subscribeTo = (subscriptionFn, callbackFn, property, predicate) => {
+    predicate = predicate || (() => true);
+    subscriptionFn(_changedSubscriber(callbackFn, !property ? null : (x) => x === property && predicate()));
+  };
+
+  const _changedSubscriber = (fn, predicate) => {
+    return (property, value) => {
+      if (!predicate || !property || predicate(property)) {
+        fn(value);
+      }
+    };
+  };
+
+  return { subscribeTo };
+}
+
+function Player(name, sign) {
+  const _notifier = changedNotifier();
+  const _scoreProperty = notifyOnChangeProperty(SCORE, _notifier);
+  _scoreProperty.setValueSilent(0);
+
+  const _historyProperty = notifyOnChangeProperty(HISTORY, _notifier);
+  _historyProperty.setValueSilent([]);
+
+  const getName = () => name;
+  const getSign = () => sign;
+  const addHistory = (value) => {
+    const arr = _historyProperty.getValue();
+    if (arr.length >= 5) {
+      arr.splice(0, arr.length - 4);
+    }
+    arr.push(value);
+    _historyProperty.fireChanged();
+  };
+  const clearHistory = () => {
+    _historyProperty.setValueSilent([]);
+    _historyProperty.fireChanged();
+  };
+
+  return {
+    getName,
+    getSign,
+    setScore: _scoreProperty.setValue,
+    getScore: _scoreProperty.getValue,
+    addHistory,
+    getHistory: _historyProperty.getValue,
+    clearHistory,
+    subscribeChanged: _notifier.subscribe,
+  };
+}
 
 const gameController = (() => {
   let _length = 3;
@@ -15,6 +109,10 @@ const gameController = (() => {
     [NONE, NONE, NONE],
     [NONE, NONE, NONE],
   ];
+
+  const length = () => {
+    return _length;
+  };
 
   const signX = () => {
     return X;
@@ -216,10 +314,11 @@ const gameController = (() => {
     return result;
   };
 
-  return { signX, signO, gameBoard, winner, createGameBoard, place, reset };
+  return { length, signX, signO, gameBoard, winner, createGameBoard, place, reset };
 })();
 
 const displayController = (() => {
+  const _changedSubscriber = changeSubscriber();
   let _gameBoardEl;
 
   const initGameBoardEl = (gameBoardContainerEl, length) => {
@@ -235,9 +334,19 @@ const displayController = (() => {
   const setGameBoardLength = (length) => {
     _gameBoardEl.style.gridTemplateColumns = `repeat(${length}, 1fr`;
     _gameBoardEl.style.gridTemplateRows = `repeat(${length}, 1fr`;
+    _gameBoardEl.style.height = "100%";
+    _gameBoardEl.innerHTML = "";
     for (let i = 0; i < length; i++) {
       for (let j = 0; j < length; j++) {
         const cellEl = document.createElement("div");
+
+        if (i !== length - 1) cellEl.style.borderBottom = "1px solid black";
+        if (j !== length - 1) cellEl.style.borderRight = "1px solid black";
+        cellEl.style.display = "flex";
+        cellEl.style.justifyContent = "center";
+        cellEl.style.alignItems = "center";
+
+        cellEl.style.cursor = "pointer";
         cellEl.setAttribute("data-row", i.toString());
         cellEl.setAttribute("data-col", j.toString());
         _gameBoardEl.appendChild(cellEl);
@@ -257,7 +366,49 @@ const displayController = (() => {
 
   const showMove = (sign, row, col) => {
     const cellEl = _gameBoardEl.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-    if (cellEl) cellEl.textContent = _getSignText(sign);
+    if (cellEl) {
+      const pEl = document.createElement("p");
+      pEl.textContent = _getSignText(sign);
+      cellEl.appendChild(pEl);
+      const scale = (Math.min(cellEl.offsetWidth / pEl.offsetWidth, cellEl.offsetHeight / pEl.offsetHeight) * 80) / 100;
+      pEl.style.scale = scale;
+    }
+  };
+
+  const initPlayersBinding = (player1, player2) => {
+    const playerCardTemplate = document.getElementById("player-card-template");
+    const player1El = playerCardTemplate.content.cloneNode(true).querySelector(".player-card");
+    const player2El = playerCardTemplate.content.cloneNode(true).querySelector(".player-card");
+
+    const showRoundHistory = (el, history) => {
+      el.querySelectorAll(".round-history>span").forEach((x) => x.remove());
+      history.forEach((x) => {
+        const spanEl = document.createElement("span");
+        spanEl.classList.add("round-history-item", x);
+        spanEl.textContent = x[0].toUpperCase();
+        el.querySelector(".round-history").appendChild(spanEl);
+      });
+    };
+    const showScore = (el, score) => (el.querySelectorAll(".player-score>h1")[1].textContent = score);
+
+    player1El.querySelector("h1").textContent = player1.getName();
+    player2El.querySelector("h1").textContent = player2.getName();
+
+    _changedSubscriber.subscribeTo(player1.subscribeChanged, (history) => showRoundHistory(player1El, history), HISTORY);
+    _changedSubscriber.subscribeTo(player1.subscribeChanged, (score) => showScore(player1El, score), SCORE);
+
+    _changedSubscriber.subscribeTo(player2.subscribeChanged, (history) => showRoundHistory(player2El, history), HISTORY);
+    _changedSubscriber.subscribeTo(player2.subscribeChanged, (score) => showScore(player2El, score), SCORE);
+
+    const playerContainers = document.querySelectorAll(".player-container");
+    playerContainers[0].appendChild(player1El);
+    playerContainers[1].appendChild(player2El);
+  };
+
+  const showWinner = (winner) => {
+    document.querySelector(".modal-backdrop").classList.remove("hide");
+    document.querySelector(".modal-content").classList.remove("hide");
+    document.querySelectorAll(".modal-content>h1")[1].textContent = winner;
   };
 
   const _getSignText = (sign) => {
@@ -265,12 +416,13 @@ const displayController = (() => {
     else return "";
   };
 
-  return { initGameBoardEl, showGameBoard, showMove, setGameBoardLength };
+  return { initGameBoardEl, showGameBoard, showMove, setGameBoardLength, initPlayersBinding, showWinner };
 })();
 
 const interactionController = (() => {
-  let _length;
-  let _changed = [];
+  const _notifier = changedNotifier();
+  const _lengthProperty = notifyOnChangeProperty(LENGTH, _notifier);
+  const _selectedCellProperty = notifyOnChangeProperty(SELECTEDCELL, _notifier, false);
 
   const initFieldLengthEl = (fieldLengthContainerEl) => {
     const lengthSliderEl = fieldLengthContainerEl.querySelector(".length-slider");
@@ -278,41 +430,43 @@ const interactionController = (() => {
 
     lengthSliderEl.addEventListener("input", (event) => (lengthInfoEl.textContent = event.target.value + " x " + event.target.value));
     lengthSliderEl.addEventListener("change", (event) => {
-      _length = event.target.value;
-      _fireChanged(LENGTH, _length);
+      _lengthProperty.setValue(event.target.value);
     });
   };
 
   const initGameBoardEl = (gameBoardContainerEl) => {
     gameBoardContainerEl.addEventListener("click", (event) => {
       if (event.target.dataset.row && event.target.dataset.col) {
-        _fireChanged(SELECTEDCELL, { row: event.target.dataset.row, col: event.target.dataset.col });
+        _selectedCellProperty.setValue({ row: event.target.dataset.row, col: event.target.dataset.col });
       }
     });
   };
 
-  const subscribeChanged = (subscriber) => {
-    _changed.push(subscriber);
+  const setLength = (value) => {
+    _lengthProperty.setValue(value);
   };
 
-  const _fireChanged = (property, value) => {
-    _changed.forEach((x) => x(property, value));
+  const setSelectedCell = (row, col) => {
+    _selectedCellProperty.setValue({ row, col });
   };
 
-  return { initFieldLengthEl, initGameBoardEl, subscribeChanged };
+  return { initFieldLengthEl, initGameBoardEl, subscribeChanged: _notifier.subscribe, setLength, setSelectedCell };
 })();
 
 const gameManager = (() => {
-  let _gameController, _displayController, _interactionController;
-  let _lastSign;
+  const _subscriber = changeSubscriber();
+  let _gameController, _displayController, _interactionController, _player1, _player2;
+  let _activePlayer = 1;
 
-  const init = (gameController, displayController, interactionController) => {
+  const init = (gameController, displayController, interactionController, player1, player2) => {
     _gameController = gameController;
     _displayController = displayController;
     _interactionController = interactionController;
+    _player1 = player1;
+    _player2 = player2;
 
-    interactionController.subscribeChanged(_changedSubscriber(_lengthChangedHandler, (x) => x === LENGTH));
-    interactionController.subscribeChanged(_changedSubscriber(_selectedCellChangedHandler, (x) => x === SELECTEDCELL));
+    _subscriber.subscribeTo(interactionController.subscribeChanged, _lengthChangedHandler, LENGTH, null);
+    _subscriber.subscribeTo(interactionController.subscribeChanged, _selectedCellChangedHandler, SELECTEDCELL, null);
   };
 
   const _lengthChangedHandler = (length) => {
@@ -321,24 +475,44 @@ const gameManager = (() => {
   };
 
   const _selectedCellChangedHandler = (selectedCell) => {
-    const result = gameController.place(_getSign, selectedCell.row, selectedCell.col);
+    const result = gameController.place(_getSign(), selectedCell.row, selectedCell.col);
     if (result.valid) {
       displayController.showMove(result.sign, result.row, result.col);
-      _lastSign = result.sign;
+      _activePlayer = result.sign === player1.getSign() ? 2 : 1;
+      if (result.winner !== NONE) {
+        let winner = "";
+        if (result.sign === player1.getSign()) {
+          player1.addHistory(WIN);
+          player2.addHistory(LOSE);
+          player1.setScore(player1.getScore() + 1);
+          winner = player1.getName();
+        } else if (result.sign === player2.getSign()) {
+          player2.addHistory(WIN);
+          player1.addHistory(LOSE);
+          player2.setScore(player2.getScore() + 1);
+          winner = player2.getName();
+        } else {
+          player1.addHistory(DRAW);
+          player2.addHistory(DRAW);
+          winner = DRAW[0].toUpperCase() + DRAW.slice(1).toLowerCase();
+        }
+        _displayController.showWinner(winner);
+      }
     }
   };
 
-  const _changedSubscriber = (fn, predicate) => {
-    return (property, value) => {
-      if (predicate(property)) {
-        fn(value);
-      }
-    };
-  };
-
   const _getSign = () => {
-    return _lastSign === X ? O : X;
+    const result = _activePlayer === 1 ? _player1.getSign() : _player2.getSign();
+    return result;
   };
 
   return { init };
 })();
+
+displayController.initGameBoardEl(document.querySelector(".game-board"), 3);
+const player1 = Player("Player - 1", X);
+const player2 = Player("Player - 2", O);
+displayController.initPlayersBinding(player1, player2);
+
+interactionController.initGameBoardEl(document.querySelector(".game-board"));
+gameManager.init(gameController, displayController, interactionController, player1, player2);

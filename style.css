@@ -1,3 +1,9 @@
+:root {
+  --dark-color: #2d4356;
+  --dark-green-color: #1f931f;
+  --red-color: #e45349;
+}
+
 *,
 ::after,
 ::before {
@@ -19,11 +25,136 @@ body {
   grid-template-columns: 1fr 3fr 1fr;
 }
 
+.player-container {
+  display: grid;
+}
+
+.player-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.round-history {
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+}
+
+.round-history > h3 {
+  grid-row: 1;
+  grid-column: 1/-1;
+}
+
+.round-history-item {
+  border: 1px solid;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: bold;
+  padding: 4px 8px;
+}
+
+.round-history-item.win {
+  border-color: var(--dark-green-color);
+  background-color: var(--dark-green-color);
+  color: white;
+}
+
+.round-history-item.lose {
+  border-color: var(--red-color);
+  background-color: var(--red-color);
+  color: white;
+}
+
+.round-history-item.draw {
+  border-color: darkslategrey;
+  background-color: darkslategrey;
+  color: white;
+}
+
+.player-score {
+  text-align: center;
+}
+
 .game-board {
   height: 250px;
 }
 
 .settings {
   grid-column: 2;
-  height: 80px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 8px;
+}
+
+.settings__length {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings__round {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.button {
+  background-color: transparent;
+  border: 1px solid var(--dark-color);
+  color: var(--dark-color);
+  padding: 10px 24px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 300;
+  transition: transform 0.2s ease;
+}
+
+.button:hover {
+  transform: scale(1.15);
+}
+
+.button.start {
+  --dark-color: var(--dark-green-color);
+  --dark-color: var(--dark-green-color);
+}
+
+.button.stop {
+  --dark-color: var(--red-color);
+  --dark-color: var(--red-color);
+}
+
+.hide {
+  display: none !important;
+}
+
+.modal-backdrop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  text-align: center;
+  color: white;
+  transform: translate(-50%, -50%);
+  position: absolute;
+  left: 50%;
+  top: 25%;
 }
