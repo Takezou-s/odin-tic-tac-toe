@@ -8,6 +8,11 @@ const LENGTH = "length";
 const SELECTEDCELL = "selectedCell";
 const SCORE = "score";
 const HISTORY = "history";
+const NAME = "name";
+const MODALCLOSED = "modalClosed";
+const RESETCLICKED = "resetClicked";
+
+const gameBoardContainerEl = document.querySelector(".game-board");
 
 function changedNotifier() {
   const _changed = [];
@@ -66,13 +71,15 @@ function changeSubscriber() {
 
 function Player(name, sign) {
   const _notifier = changedNotifier();
+  const _nameProperty = notifyOnChangeProperty(NAME, _notifier);
+  _nameProperty.setValueSilent(name);
+
   const _scoreProperty = notifyOnChangeProperty(SCORE, _notifier);
   _scoreProperty.setValueSilent(0);
 
   const _historyProperty = notifyOnChangeProperty(HISTORY, _notifier);
   _historyProperty.setValueSilent([]);
 
-  const getName = () => name;
   const getSign = () => sign;
   const addHistory = (value) => {
     const arr = _historyProperty.getValue();
@@ -88,7 +95,7 @@ function Player(name, sign) {
   };
 
   return {
-    getName,
+    getName: _nameProperty.getValue,
     getSign,
     setScore: _scoreProperty.setValue,
     getScore: _scoreProperty.getValue,
@@ -150,15 +157,16 @@ const gameController = (() => {
   };
 
   const place = (sign, row, col) => {
-    if (
-      _gameOver ||
-      (sign !== X && sign !== O) ||
-      row >= _length ||
-      row < 0 ||
-      col > _length ||
-      col < 0 ||
-      _gameBoard[row][col] !== NONE
-    ) {
+    row = +row;
+    col = +col;
+    const signCheck = sign !== X && sign !== O;
+    const rowCheck = row >= _length;
+    const rowCheck1 = row < 0;
+    const colCheck = col >= _length;
+    const colCheck1 = col < 0;
+    const cellCheck = _gameBoard[row][col] !== NONE;
+    if (_gameOver || signCheck || rowCheck || rowCheck1 || colCheck || colCheck1 || cellCheck) {
+      console.log("Place method, length: ", _length);
       return { valid: false };
     }
 
@@ -321,14 +329,9 @@ const displayController = (() => {
   const _changedSubscriber = changeSubscriber();
   let _gameBoardEl;
 
-  const initGameBoardEl = (gameBoardContainerEl, length) => {
-    _gameBoardEl = document.createElement("div");
-    _gameBoardEl.style.display = "grid";
-
-    setGameBoardLength(length);
-
-    gameBoardContainerEl.innerHTML = "";
-    gameBoardContainerEl.appendChild(_gameBoardEl);
+  const init = (length, player1, player2) => {
+    _initGameBoardEl(length);
+    _initPlayersBinding(player1, player2);
   };
 
   const setGameBoardLength = (length) => {
@@ -367,19 +370,47 @@ const displayController = (() => {
   const showMove = (sign, row, col) => {
     const cellEl = _gameBoardEl.querySelector(`[data-row="${row}"][data-col="${col}"]`);
     if (cellEl) {
+      const offsetWidth = cellEl.offsetWidth;
+      const offsetHeight = cellEl.offsetHeight;
+
       const pEl = document.createElement("p");
-      pEl.textContent = _getSignText(sign);
+      pEl.style.fontSize = "8px";
+      pEl.textContent = sign;
       cellEl.appendChild(pEl);
-      const scale = (Math.min(cellEl.offsetWidth / pEl.offsetWidth, cellEl.offsetHeight / pEl.offsetHeight) * 80) / 100;
+      const widthRatio = offsetWidth / pEl.offsetWidth;
+      const heightRatio = offsetHeight / pEl.offsetHeight;
+      let scale = Math.min(widthRatio, heightRatio);
+      scale = scale * 0.6;
       pEl.style.scale = scale;
     }
   };
 
-  const initPlayersBinding = (player1, player2) => {
+  const showWinner = (winner) => {
+    document.querySelector(".modal-backdrop").classList.remove("hide");
+    document.querySelector(".modal-content").classList.remove("hide");
+    document.querySelectorAll(".modal-content>h1")[1].textContent = winner;
+  };
+
+  const showRound = (round) => {
+    document.querySelectorAll(".settings__round>h2")[1].textContent = round;
+  };
+
+  const _initGameBoardEl = (length) => {
+    _gameBoardEl = document.createElement("div");
+    _gameBoardEl.style.display = "grid";
+
+    setGameBoardLength(length);
+
+    gameBoardContainerEl.innerHTML = "";
+    gameBoardContainerEl.appendChild(_gameBoardEl);
+  };
+
+  const _initPlayersBinding = (player1, player2) => {
     const playerCardTemplate = document.getElementById("player-card-template");
     const player1El = playerCardTemplate.content.cloneNode(true).querySelector(".player-card");
     const player2El = playerCardTemplate.content.cloneNode(true).querySelector(".player-card");
 
+    const showName = (el, name) => (el.querySelector("h1").textContent = name);
     const showRoundHistory = (el, history) => {
       el.querySelectorAll(".round-history>span").forEach((x) => x.remove());
       history.forEach((x) => {
@@ -394,9 +425,11 @@ const displayController = (() => {
     player1El.querySelector("h1").textContent = player1.getName();
     player2El.querySelector("h1").textContent = player2.getName();
 
+    _changedSubscriber.subscribeTo(player1.subscribeChanged, (name) => showName(player1El, name), NAME);
     _changedSubscriber.subscribeTo(player1.subscribeChanged, (history) => showRoundHistory(player1El, history), HISTORY);
     _changedSubscriber.subscribeTo(player1.subscribeChanged, (score) => showScore(player1El, score), SCORE);
 
+    _changedSubscriber.subscribeTo(player2.subscribeChanged, (name) => showName(player2El, name), NAME);
     _changedSubscriber.subscribeTo(player2.subscribeChanged, (history) => showRoundHistory(player2El, history), HISTORY);
     _changedSubscriber.subscribeTo(player2.subscribeChanged, (score) => showScore(player2El, score), SCORE);
 
@@ -405,28 +438,38 @@ const displayController = (() => {
     playerContainers[1].appendChild(player2El);
   };
 
-  const showWinner = (winner) => {
-    document.querySelector(".modal-backdrop").classList.remove("hide");
-    document.querySelector(".modal-content").classList.remove("hide");
-    document.querySelectorAll(".modal-content>h1")[1].textContent = winner;
-  };
-
-  const _getSignText = (sign) => {
-    if (sign === X || sign === O) return sign;
-    else return "";
-  };
-
-  return { initGameBoardEl, showGameBoard, showMove, setGameBoardLength, initPlayersBinding, showWinner };
+  return { init, showGameBoard, showMove, setGameBoardLength, showWinner, showRound };
 })();
 
 const interactionController = (() => {
   const _notifier = changedNotifier();
   const _lengthProperty = notifyOnChangeProperty(LENGTH, _notifier);
   const _selectedCellProperty = notifyOnChangeProperty(SELECTEDCELL, _notifier, false);
+  const _modalClosedProperty = notifyOnChangeProperty(MODALCLOSED, _notifier, false);
+  const _resetClickedProperty = notifyOnChangeProperty(RESETCLICKED, _notifier, false);
 
-  const initFieldLengthEl = (fieldLengthContainerEl) => {
-    const lengthSliderEl = fieldLengthContainerEl.querySelector(".length-slider");
-    const lengthInfoEl = fieldLengthContainerEl.querySelector(".length-info");
+  const init = () => {
+    _initFieldLengthEl();
+    _initGameBoardEl();
+    _initModalEl();
+    _initResetButton();
+  };
+
+  const _initResetButton = () => {
+    document.querySelector(".settings__buttons>button").addEventListener("click", () => _resetClickedProperty.fireChanged());
+  };
+
+  const _initModalEl = () => {
+    document.querySelector(".modal-backdrop").addEventListener("click", () => {
+      document.querySelector(".modal-backdrop").classList.add("hide");
+      document.querySelector(".modal-content").classList.add("hide");
+      _modalClosedProperty.fireChanged();
+    });
+  };
+
+  const _initFieldLengthEl = () => {
+    const lengthSliderEl = document.querySelector(".length-slider");
+    const lengthInfoEl = document.querySelector(".length-info");
 
     lengthSliderEl.addEventListener("input", (event) => (lengthInfoEl.textContent = event.target.value + " x " + event.target.value));
     lengthSliderEl.addEventListener("change", (event) => {
@@ -434,7 +477,7 @@ const interactionController = (() => {
     });
   };
 
-  const initGameBoardEl = (gameBoardContainerEl) => {
+  const _initGameBoardEl = () => {
     gameBoardContainerEl.addEventListener("click", (event) => {
       if (event.target.dataset.row && event.target.dataset.col) {
         _selectedCellProperty.setValue({ row: event.target.dataset.row, col: event.target.dataset.col });
@@ -450,53 +493,80 @@ const interactionController = (() => {
     _selectedCellProperty.setValue({ row, col });
   };
 
-  return { initFieldLengthEl, initGameBoardEl, subscribeChanged: _notifier.subscribe, setLength, setSelectedCell };
+  return { init, subscribeChanged: _notifier.subscribe, setLength, setSelectedCell };
 })();
 
 const gameManager = (() => {
   const _subscriber = changeSubscriber();
-  let _gameController, _displayController, _interactionController, _player1, _player2;
+  let _length = 3;
+  let _player1, _player2;
   let _activePlayer = 1;
+  let _round = 1;
 
-  const init = (gameController, displayController, interactionController, player1, player2) => {
-    _gameController = gameController;
-    _displayController = displayController;
-    _interactionController = interactionController;
+  const init = (player1, player2) => {
     _player1 = player1;
     _player2 = player2;
 
+    displayController.init(_length, player1, player2);
+    interactionController.init();
+
     _subscriber.subscribeTo(interactionController.subscribeChanged, _lengthChangedHandler, LENGTH, null);
     _subscriber.subscribeTo(interactionController.subscribeChanged, _selectedCellChangedHandler, SELECTEDCELL, null);
+    _subscriber.subscribeTo(interactionController.subscribeChanged, _restartGame, MODALCLOSED, null);
+    _subscriber.subscribeTo(interactionController.subscribeChanged, _reset, RESETCLICKED, null);
   };
 
   const _lengthChangedHandler = (length) => {
-    _gameController.createGameBoard(length);
-    _displayController.setGameBoardLength(length);
+    _length = length;
+    gameController.createGameBoard(length);
+    gameController.reset();
+    displayController.setGameBoardLength(length);
+  };
+
+  const _reset = () => {
+    _restartGame();
+    _setRound(1);
+    _player1.setScore(0);
+    _player1.clearHistory();
+    _player2.setScore(0);
+    _player2.clearHistory();
+  };
+
+  const _restartGame = () => {
+    _setRound(++_round);
+    _activePlayer = 1;
+    gameController.reset();
+    displayController.setGameBoardLength(_length);
+  };
+
+  const _setRound = (value) => {
+    _round = value;
+    displayController.showRound(_round);
   };
 
   const _selectedCellChangedHandler = (selectedCell) => {
     const result = gameController.place(_getSign(), selectedCell.row, selectedCell.col);
     if (result.valid) {
       displayController.showMove(result.sign, result.row, result.col);
-      _activePlayer = result.sign === player1.getSign() ? 2 : 1;
+      _activePlayer = result.sign === _player1.getSign() ? 2 : 1;
       if (result.winner !== NONE) {
         let winner = "";
-        if (result.sign === player1.getSign()) {
-          player1.addHistory(WIN);
-          player2.addHistory(LOSE);
-          player1.setScore(player1.getScore() + 1);
-          winner = player1.getName();
-        } else if (result.sign === player2.getSign()) {
-          player2.addHistory(WIN);
-          player1.addHistory(LOSE);
-          player2.setScore(player2.getScore() + 1);
-          winner = player2.getName();
+        if (result.winner === _player1.getSign()) {
+          _player1.addHistory(WIN);
+          _player2.addHistory(LOSE);
+          _player1.setScore(_player1.getScore() + 1);
+          winner = _player1.getName();
+        } else if (result.winner === _player2.getSign()) {
+          _player2.addHistory(WIN);
+          _player1.addHistory(LOSE);
+          _player2.setScore(_player2.getScore() + 1);
+          winner = _player2.getName();
         } else {
-          player1.addHistory(DRAW);
-          player2.addHistory(DRAW);
+          _player1.addHistory(DRAW);
+          _player2.addHistory(DRAW);
           winner = DRAW[0].toUpperCase() + DRAW.slice(1).toLowerCase();
         }
-        _displayController.showWinner(winner);
+        displayController.showWinner(winner);
       }
     }
   };
@@ -509,10 +579,4 @@ const gameManager = (() => {
   return { init };
 })();
 
-displayController.initGameBoardEl(document.querySelector(".game-board"), 3);
-const player1 = Player("Player - 1", X);
-const player2 = Player("Player - 2", O);
-displayController.initPlayersBinding(player1, player2);
-
-interactionController.initGameBoardEl(document.querySelector(".game-board"));
-gameManager.init(gameController, displayController, interactionController, player1, player2);
+gameManager.init(Player("Player - 1", X), Player("Player - 2", O));
